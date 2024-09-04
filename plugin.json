@@ -1,0 +1,19 @@
+{
+    "name": "mvp-audio",
+    "version": "1.0.0",
+    "pluginName": "音频处理",
+    "description": "音频文件剪辑、转码、本地录音功能",
+    "main": "index.html",
+    "logo": "logo.png",
+    "preload": "preload.js",
+    "features": [
+        {
+            "code": "demo-helloworld",
+            "explain": "helloworld示例插件",
+            "cmds": ["hello"]
+        }
+    ],
+    "development": {
+        "main": "http://localhost:5173/index.html"
+    }
+}
