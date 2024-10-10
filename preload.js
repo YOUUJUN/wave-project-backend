@@ -1,12 +1,23 @@
 const Path = require("path");
 const fs = require("fs");
 const http = require("http");
+const crypto = require("crypto");
 const { PassThrough } = require("stream");
 const { exec, execFile, spawn } = require("child_process");
 
 const appDataPath = utools.getPath("userData");
 const ffmpegFilePath = Path.join(appDataPath, "ffmpeg.exe");
+const userCacheDataPath = Path.join(appDataPath, "audio-process-cache");
 console.log("appDataPath", appDataPath);
+
+//初始化用户临时文件处理目录
+function initUserDir() {
+    try {
+        fs.mkdirSync(userCacheDataPath, { recursive: true });
+    } catch (err) {
+        console.error("初始化用户文件夹失败", err);
+    }
+}
 
 //下载ffmpeg
 function downloadFFmpeg(filePath) {
@@ -135,6 +146,7 @@ function convertToWav(inputFilePath) {
     });
 }
 
+//音频文件转成wav格式流
 function convertAudioToBuffer(filePath) {
     return new Promise((resolve, reject) => {
         // 使用 child_process 来执行 ffmpeg 命令
@@ -176,11 +188,38 @@ function convertAudioToBuffer(filePath) {
     });
 }
 
+//音频剪切
+function cutAudio(inputFilePath, startTime, duration) {
+    return new Promise((resolve, reject) => {
+        const fileExtensionName = Path.extname(inputFilePath);
+        const randowId = crypto.randomBytes(16).toString("hex");
+        const outputFileName = `${randowId}${fileExtensionName}`;
+        const outputFilePath = Path.join(userCacheDataPath, outputFileName);
+        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} -acodec copy "${outputFilePath}"`;
+        console.log("ffmpegCommond", ffmpegCommond);
+        exec(ffmpegCommond, (error, stdout, stderr) => {
+            if (error) {
+                reject(error);
+                return;
+            }
+
+            if (stderr) {
+                reject(stderr);
+                return;
+            }
+
+            resolve(stdout);
+        });
+    });
+}
+
 //初始化插件
 utools.onPluginEnter(() => {
     checkIfFFmpegExist().then((res) => {
         console.log("all set");
     });
+
+    initUserDir();
 });
 
 function getUserDataPath() {
@@ -194,4 +233,5 @@ window.services = {
     streamToBuffer,
     readAudioFile,
     convertAudioToBuffer,
+    cutAudio,
 };
