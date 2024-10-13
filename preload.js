@@ -5,17 +5,29 @@ const crypto = require("crypto");
 const { PassThrough } = require("stream");
 const { exec, execFile, spawn } = require("child_process");
 
-const appDataPath = utools.getPath("userData");
-const ffmpegFilePath = Path.join(appDataPath, "ffmpeg.exe");
-const userCacheDataPath = Path.join(appDataPath, "audio-process-cache");
-console.log("appDataPath", appDataPath);
+let ffmpegFilePath = Path.join(utools.getPath("downloads"), "ffmpeg.exe");
+let audioOutputDataPath = utools.getPath("downloads");
 
-//初始化用户临时文件处理目录
-function initUserDir() {
-    try {
-        fs.mkdirSync(userCacheDataPath, { recursive: true });
-    } catch (err) {
-        console.error("初始化用户文件夹失败", err);
+//初始化用户数据
+function initUserData() {
+    const audioOutputData = utools.db.get("audioOutputPath");
+    const ffmpegData = utools.db.get("ffmpeg");
+    console.log("ffmpegData", ffmpegData, audioOutputData);
+
+    if (ffmpegData) {
+        let path = ffmpegData.data;
+        if (["downloads", "music", "desktop"].includes(path)) {
+            path = utools.getPath(ffmpegData.data);
+        }
+        ffmpegFilePath = Path.join(path, "ffmpeg.exe");
+    }
+
+    if (audioOutputData) {
+        let path = audioOutputData.data;
+        if (["downloads", "music", "desktop"].includes(path)) {
+            path = utools.getPath(audioOutputData.data);
+        }
+        audioOutputDataPath = Path.join(path);
     }
 }
 
@@ -132,7 +144,7 @@ function readAudioFile(filePath) {
 //音频转wav格式
 function convertToWav(inputFilePath) {
     return new Promise((resolve, reject) => {
-        const outputFilePath = Path.join(appDataPath, "test.wav");
+        const outputFilePath = Path.join(audioOutputDataPath, "test.wav");
         const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" "${outputFilePath}"`;
         execFile(ffmpegCommond, (error) => {
             if (error) {
@@ -194,7 +206,7 @@ function cutAudio(inputFilePath, startTime, duration) {
         const fileExtensionName = Path.extname(inputFilePath);
         const randowId = crypto.randomBytes(16).toString("hex");
         const outputFileName = `${randowId}${fileExtensionName}`;
-        const outputFilePath = Path.join(userCacheDataPath, outputFileName);
+        const outputFilePath = Path.join(audioOutputDataPath, outputFileName);
         const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} -acodec copy "${outputFilePath}"`;
         console.log("ffmpegCommond", ffmpegCommond);
         exec(ffmpegCommond, (error, stdout, stderr) => {
@@ -219,19 +231,15 @@ utools.onPluginEnter(() => {
         console.log("all set");
     });
 
-    initUserDir();
+    initUserData();
 });
 
-function getUserDataPath() {
-    console.log("appDataPath", appDataPath);
-}
-
 window.services = {
-    getUserDataPath,
     convertToWavStream,
     convertToWav,
     streamToBuffer,
     readAudioFile,
     convertAudioToBuffer,
     cutAudio,
+    initUserData,
 };
