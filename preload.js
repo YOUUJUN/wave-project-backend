@@ -19,7 +19,7 @@ function initUserData() {
         if (["downloads", "music", "desktop"].includes(path)) {
             path = utools.getPath(ffmpegData.data);
         }
-        ffmpegFilePath = Path.join(path, "ffmpeg.exe");
+        ffmpegFilePath = Path.join(path);
     }
 
     if (audioOutputData) {
@@ -62,14 +62,20 @@ function downloadFFmpeg(filePath) {
 }
 
 //检查有无ffmpeg
-async function checkIfFFmpegExist() {
-    if (!fs.existsSync(ffmpegFilePath)) {
-        console.log("no exist ffmpeg");
-        return downloadFFmpeg(ffmpegFilePath);
-    } else {
-        console.log("have ffmpeg");
-        return;
-    }
+function checkIfFFmpegExist() {
+    console.log("ffmpegFilePath", ffmpegFilePath);
+
+    return new Promise((resolve, reject) => {
+        const ffmpegCommond = `"${ffmpegFilePath}" -version`;
+        exec(ffmpegCommond, (error, stdout, stderr) => {
+            if (error) {
+                console.error("Dont have ffmpeg");
+                return reject();
+            }
+
+            return resolve();
+        });
+    });
 }
 
 //音频剪辑功能
@@ -225,12 +231,40 @@ function cutAudio(inputFilePath, startTime, duration) {
     });
 }
 
-//初始化插件
-utools.onPluginEnter(() => {
-    checkIfFFmpegExist().then((res) => {
-        console.log("all set");
+//在数据库新增或更新数据
+function addOrUpdataDataBase(id, data) {
+    const result = utools.db.get(id);
+    const updateParams = {
+        _id: id,
+        data,
+    };
+    if (result) {
+        const { _rev } = result;
+        Object.assign(updateParams, {
+            _rev,
+        });
+    }
+
+    return utools.db.put(updateParams);
+}
+
+//用户选择保存路径保存ffmpeg
+async function userCtrlDownloadFFmpeg() {
+    const savePath = utools.showSaveDialog({
+        title: "FFmpeg存放路径",
+        defaultPath: "ffmpeg.exe",
+        buttonLabel: "保存",
     });
 
+    if (savePath?.length > 0) {
+        addOrUpdataDataBase("ffmpeg", savePath);
+        initUserData();
+        return downloadFFmpeg(savePath);
+    }
+}
+
+//初始化插件
+utools.onPluginEnter(() => {
     initUserData();
 });
 
@@ -242,4 +276,7 @@ window.services = {
     convertAudioToBuffer,
     cutAudio,
     initUserData,
+    userCtrlDownloadFFmpeg,
+    checkIfFFmpegExist,
+    addOrUpdataDataBase,
 };
