@@ -207,13 +207,22 @@ function convertAudioToBuffer(filePath) {
 }
 
 //音频剪切
-function cutAudio(inputFilePath, startTime, duration) {
+function cutAudio(inputFilePath, startTime, duration, bands) {
     return new Promise((resolve, reject) => {
         const fileExtensionName = Path.extname(inputFilePath);
         const randowId = crypto.randomBytes(16).toString("hex");
         const outputFileName = `${randowId}${fileExtensionName}`;
         const outputFilePath = Path.join(audioOutputDataPath, outputFileName);
-        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} -acodec copy "${outputFilePath}"`;
+
+        let equalizerCommond = "";
+        if (bands?.length > 0) {
+            equalizerCommond = genAudioEqualizerCommond(bands);
+            console.log("equalizerCommond", equalizerCommond);
+        }
+
+        // const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} -af "equalizer=f=60:t=q:w=1:g=15" -acodec copy "${outputFilePath}"`;
+        // const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} -af "equalizer=f=60:t=q:w=1:g=15" "${outputFilePath}"`;
+        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} ${equalizerCommond} "${outputFilePath}"`;
         console.log("ffmpegCommond", ffmpegCommond);
         exec(ffmpegCommond, (error, stdout, stderr) => {
             if (error) {
@@ -229,6 +238,20 @@ function cutAudio(inputFilePath, startTime, duration) {
             resolve(stdout);
         });
     });
+}
+
+//音频均衡器滤镜
+function genAudioEqualizerCommond(bandsData) {
+    let equalizerCommond = bandsData
+        .map((item, index) => {
+            const { frequencyValue, value } = item;
+            // return `equalizer=f=${frequencyValue}:width_type=h:width=1:g=${value}`;
+            return `equalizer=f=${frequencyValue}:t=q:w=1:g=${value}`;
+        })
+        .join(",");
+
+    let ffmpegCommond = `-af "${equalizerCommond}"`;
+    return ffmpegCommond;
 }
 
 //在数据库新增或更新数据
@@ -263,6 +286,11 @@ async function userCtrlDownloadFFmpeg() {
     }
 }
 
+//通过音频路径获取音频文件名称
+function getfileNameByPath(filePath) {
+    return Path.basename(filePath);
+}
+
 //初始化插件
 utools.onPluginEnter(() => {
     initUserData();
@@ -279,4 +307,5 @@ window.services = {
     userCtrlDownloadFFmpeg,
     checkIfFFmpegExist,
     addOrUpdataDataBase,
+    getfileNameByPath,
 };
