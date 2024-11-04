@@ -207,7 +207,7 @@ function convertAudioToBuffer(filePath) {
 }
 
 //音频剪切
-function cutAudio(inputFilePath, startTime, duration, bands) {
+function cutAudio(inputFilePath, startTime, duration, bands, envelopes) {
     return new Promise((resolve, reject) => {
         const fileExtensionName = Path.extname(inputFilePath);
         const randowId = crypto.randomBytes(16).toString("hex");
@@ -220,9 +220,14 @@ function cutAudio(inputFilePath, startTime, duration, bands) {
             console.log("equalizerCommond", equalizerCommond);
         }
 
-        // const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} -af "equalizer=f=60:t=q:w=1:g=15" -acodec copy "${outputFilePath}"`;
-        // const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} -af "equalizer=f=60:t=q:w=1:g=15" "${outputFilePath}"`;
-        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} ${equalizerCommond} "${outputFilePath}"`;
+        let afadeCommond = "";
+        if (envelopes?.length > 0) {
+            afadeCommond = genAudioAfadeCommond(envelopes);
+            console.log("afadeCommond", afadeCommond);
+        }
+
+        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} ${equalizerCommond} ${afadeCommond} "${outputFilePath}"`;
+
         console.log("ffmpegCommond", ffmpegCommond);
         exec(ffmpegCommond, (error, stdout, stderr) => {
             if (error) {
@@ -245,13 +250,50 @@ function genAudioEqualizerCommond(bandsData) {
     let equalizerCommond = bandsData
         .map((item, index) => {
             const { frequencyValue, value } = item;
-            // return `equalizer=f=${frequencyValue}:width_type=h:width=1:g=${value}`;
             return `equalizer=f=${frequencyValue}:t=q:w=1:g=${value}`;
         })
         .join(",");
 
     let ffmpegCommond = `-af "${equalizerCommond}"`;
     return ffmpegCommond;
+}
+
+//音频音量淡出滤镜
+function genAudioAfadeCommond(envelopesData) {
+    const volumeExpression = generateVolumeExpression(envelopesData);
+    let afadeCommond = `-af "volume='${volumeExpression}':eval=frame"`;
+    return afadeCommond;
+}
+
+/**
+ * 生成ffmpeg Volume滤镜Commond
+ * @param {*} points [{time: 0, volume: 0.5}, {time: 10, volume: 1}]
+ * @returns
+ */
+function generateVolumeExpression(points) {
+    let expressions = [];
+
+    for (let i = 0; i < points.length - 1; i++) {
+        const start = points[i];
+        const end = points[i + 1];
+
+        // 计算线性插值的公式
+        const slope = (end.volume - start.volume) / (end.time - start.time);
+        const intercept = start.volume - slope * start.time;
+
+        // 创建嵌套的if条件表达式
+        expressions.push(
+            `between(t,${start.time},${end.time})*(${slope.toFixed(
+                5
+            )}*t+${intercept.toFixed(5)})`
+        );
+    }
+
+    // 最后一个点的音量
+    const lastVolume = points[points.length - 1].volume;
+    expressions.push(`gte(t,${points[points.length - 1].time})*${lastVolume}`);
+
+    return expressions.join("+");
 }
 
 //在数据库新增或更新数据
