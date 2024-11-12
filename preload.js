@@ -207,7 +207,7 @@ function convertAudioToBuffer(filePath) {
 }
 
 //音频剪切
-function cutAudio(inputFilePath, startTime, duration, bands, envelopes) {
+function cutAudio(inputFilePath, startTime, duration, bands, envelopes, cutMode) {
     return new Promise((resolve, reject) => {
         const fileExtensionName = Path.extname(inputFilePath);
         const randowId = crypto.randomBytes(16).toString("hex");
@@ -226,7 +226,10 @@ function cutAudio(inputFilePath, startTime, duration, bands, envelopes) {
             console.log("afadeCommond", afadeCommond);
         }
 
-        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} ${equalizerCommond} ${afadeCommond} "${outputFilePath}"`;
+        let cutCommond = genAudioCutCommond(cutMode, startTime, duration)
+
+        // const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} ${equalizerCommond} ${afadeCommond} "${outputFilePath}"`;
+        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" ${equalizerCommond} ${afadeCommond} ${cutCommond} "${outputFilePath}"`;
 
         console.log("ffmpegCommond", ffmpegCommond);
         exec(ffmpegCommond, (error, stdout, stderr) => {
@@ -243,6 +246,27 @@ function cutAudio(inputFilePath, startTime, duration, bands, envelopes) {
             resolve(stdout);
         });
     });
+}
+
+//生成音频剪切时间命令
+/**
+ *
+ * @param {*} cutMode 1: 留中间； 2: 留俩边;
+ */
+function genAudioCutCommond(cutMode, startTime, duration) {
+    const endTime = startTime + duration;
+    let cutCommond = "";
+    if (cutMode === "1") {
+        cutCommond = `-ss ${startTime} -t ${duration}`;
+    } else if (cutMode === "2") {
+        cutCommond = `-filter_complex \
+        "[0]atrim=0:${startTime},asetpts=PTS-STARTPTS[ahead]; \
+         [0]atrim=${endTime},asetpts=PTS-STARTPTS[atail]; \
+         [ahead][atail]concat=n=2:v=0:a=1[out]" \
+         -map "[out]"`;
+    }
+
+    return cutCommond;
 }
 
 //音频均衡器滤镜
