@@ -1,6 +1,7 @@
 const Path = require("path");
 const fs = require("fs");
 const http = require("http");
+const zlib = require("zlib");
 const crypto = require("crypto");
 const { PassThrough } = require("stream");
 const { exec, execFile, spawn } = require("child_process");
@@ -32,34 +33,93 @@ function initUserData() {
 }
 
 //下载ffmpeg
-function downloadFFmpeg(filePath) {
+function downloadFFmpeg(fileSavePath) {
     console.log("downloading...");
     return new Promise((resolve, reject) => {
-        const file = fs.createWriteStream(filePath);
+        const file = fs.createWriteStream(fileSavePath);
         let downloaUrl = "";
         if (utools.isMacOS()) {
-            downloaUrl = "";
+            downloaUrl = "https://evermeet.cx/ffmpeg/ffmpeg.zip";
         } else if (utools.isWindows()) {
-            downloaUrl = "http://127.0.0.1:5173/ffmpeg.exe";
+            downloaUrl = "http://127.0.0.1:5173/win32-x64.gz";
         } else if (utools.isLinux()) {
-            downloaUrl = "";
+            downloaUrl =
+                "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz";
         }
 
-        http.get(downloaUrl, (res) => {
-            res.pipe(file);
-            file.on("finish", () => {
-                file.close(() => {
-                    console.log("FFmpeg downloaded successfully");
-                    resolve();
-                });
-            });
-        }).on("error", (err) => {
-            fs.unlink(filePath, () => {});
-            console.log("Error downloading ffmpeg:", err);
-            reject(err);
+        downloadAndExtractGz(downloaUrl, fileSavePath).then(() => {
+            console.log('ok')
+            resolve();
         });
+
+        // https
+        //     .get(downloaUrl, (res) => {
+        //         res.pipe(unzipper.Extract(file));
+        //         file.on("finish", () => {
+        //             file.close(() => {
+        //                 console.log("FFmpeg downloaded successfully");
+        //                 // 解压 ZIP 文件
+        //                 // fs.createReadStream(fileSavePath).pipe(
+        //                 //     unzipper.Extract({ path: fileSavePath })
+        //                 // );
+
+        //                 resolve();
+        //             });
+        //         });
+        //     })
+        //     .on("error", (err) => {
+        //         fs.unlink(fileSavePath, () => {});
+        //         console.log("Error downloading ffmpeg:", err);
+        //         reject(err);
+        //     });
     });
 }
+
+// 下载并解压.gz文件
+function downloadAndExtractGz(url, outputFilePath) {
+    return new Promise((resolve, reject) => {
+        // 创建文件写入流
+        const tempFilePath = Path.join(__dirname, "temp.gz");
+        const fileStream = fs.createWriteStream(tempFilePath);
+
+        // 下载 .gz 文件
+        http.get(url, (response) => {
+            response.pipe(fileStream);
+            fileStream.on("finish", () => {
+                fileStream.close();
+
+                // 解压缩 .gz 文件
+                const gzipStream = fs
+                    .createReadStream(tempFilePath)
+                    .pipe(zlib.createGunzip());
+                const outputStream = fs.createWriteStream(outputFilePath);
+
+                gzipStream.pipe(outputStream);
+                gzipStream.on("end", () => {
+                    // 删除临时文件
+                    fs.unlinkSync(tempFilePath);
+                    if (!utools.isWindows()) {
+                        setExecutablePermission(outputStream);
+                    }
+                    console.log(`File saved to ${outputFilePath}`)
+                    resolve(`File saved to ${outputFilePath}`);
+                });
+
+                gzipStream.on("error", (err) => reject(err));
+            });
+        }).on("error", (err) => reject(err));
+    });
+}
+
+// 设置文件为可执行 (Linux/macOS)
+const setExecutablePermission = async (filePath) => {
+    return new Promise((resolve, reject) => {
+        exec(`chmod +x ${filePath}`, (err) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+};
 
 //检查有无ffmpeg
 function checkIfFFmpegExist() {
@@ -207,7 +267,14 @@ function convertAudioToBuffer(filePath) {
 }
 
 //音频剪切
-function cutAudio(inputFilePath, startTime, duration, bands, envelopes, cutMode) {
+function cutAudio(
+    inputFilePath,
+    startTime,
+    duration,
+    bands,
+    envelopes,
+    cutMode
+) {
     return new Promise((resolve, reject) => {
         const fileExtensionName = Path.extname(inputFilePath);
         const randowId = crypto.randomBytes(16).toString("hex");
@@ -226,7 +293,7 @@ function cutAudio(inputFilePath, startTime, duration, bands, envelopes, cutMode)
             console.log("afadeCommond", afadeCommond);
         }
 
-        let cutCommond = genAudioCutCommond(cutMode, startTime, duration)
+        let cutCommond = genAudioCutCommond(cutMode, startTime, duration);
 
         // const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} ${equalizerCommond} ${afadeCommond} "${outputFilePath}"`;
         const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" ${equalizerCommond} ${afadeCommond} ${cutCommond} "${outputFilePath}"`;
