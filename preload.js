@@ -267,16 +267,48 @@ function convertAudioToBuffer(filePath) {
 }
 
 //音频剪切
+/**
+ *
+ * @param {*} inputFilePath 输入音频路径
+ * @param {*} startTime 剪切开始时间
+ * @param {*} duration 剪切时长
+ * @param {*} bands 均衡器数据
+ * @param {*} envelopes 包络器数据
+ * @param {*} cutMode 剪切模式
+ * @param {*} exportExt 导出格式
+ * @returns 音频流
+ */
 function cutAudio(
     inputFilePath,
     startTime,
     duration,
     bands,
     envelopes,
-    cutMode
+    cutMode,
+    exportExt
 ) {
     return new Promise((resolve, reject) => {
-        const fileExtensionName = Path.extname(inputFilePath);
+        let fileExtensionName = Path.extname(inputFilePath);
+        switch (exportExt) {
+            case "mp3":
+                fileExtensionName = ".mp3";
+                break;
+            case "m4a":
+                fileExtensionName = ".m4a";
+                break;
+            case "m4r":
+                fileExtensionName = ".m4r";
+                break;
+            case "flac":
+                fileExtensionName = ".flac";
+                break;
+            case "wav":
+                fileExtensionName = ".wav";
+                break;
+        }
+
+        console.log("fileExtensionName", fileExtensionName);
+
         const randowId = crypto.randomBytes(16).toString("hex");
         const outputFileName = `${randowId}${fileExtensionName}`;
         const outputFilePath = Path.join(audioOutputDataPath, outputFileName);
