@@ -48,7 +48,7 @@ function downloadFFmpeg(fileSavePath) {
         }
 
         downloadAndExtractGz(downloaUrl, fileSavePath).then(() => {
-            console.log('ok')
+            console.log("ok");
             resolve();
         });
 
@@ -101,7 +101,7 @@ function downloadAndExtractGz(url, outputFilePath) {
                     if (!utools.isWindows()) {
                         setExecutablePermission(outputStream);
                     }
-                    console.log(`File saved to ${outputFilePath}`)
+                    console.log(`File saved to ${outputFilePath}`);
                     resolve(`File saved to ${outputFilePath}`);
                 });
 
@@ -180,15 +180,7 @@ function streamToBuffer(stream) {
         });
         stream.on("end", () => {
             const buffer = Buffer.concat(chunks);
-
             resolve(buffer);
-
-            // resolve(
-            //     buffer.buffer.slice(
-            //         buffer.byteOffset,
-            //         buffer.byteOffset + buffer.byteLength
-            //     )
-            // );
         });
         stream.on("error", reject);
     });
@@ -288,26 +280,13 @@ function cutAudio(
     exportExt
 ) {
     return new Promise((resolve, reject) => {
-        let fileExtensionName = Path.extname(inputFilePath);
-        switch (exportExt) {
-            case "mp3":
-                fileExtensionName = ".mp3";
-                break;
-            case "m4a":
-                fileExtensionName = ".m4a";
-                break;
-            case "m4r":
-                fileExtensionName = ".m4r";
-                break;
-            case "flac":
-                fileExtensionName = ".flac";
-                break;
-            case "wav":
-                fileExtensionName = ".wav";
-                break;
-        }
+        const { fileExtensionName, formatCommond } = genAudioFormatCommond(
+            inputFilePath,
+            exportExt
+        );
 
         console.log("fileExtensionName", fileExtensionName);
+        console.log("formatCommond", formatCommond);
 
         const randowId = crypto.randomBytes(16).toString("hex");
         const outputFileName = `${randowId}${fileExtensionName}`;
@@ -328,23 +307,60 @@ function cutAudio(
         let cutCommond = genAudioCutCommond(cutMode, startTime, duration);
 
         // const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} ${equalizerCommond} ${afadeCommond} "${outputFilePath}"`;
-        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" ${equalizerCommond} ${afadeCommond} ${cutCommond} "${outputFilePath}"`;
+        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" ${equalizerCommond} ${afadeCommond} ${cutCommond} ${formatCommond} "${outputFilePath}"`;
 
         console.log("ffmpegCommond", ffmpegCommond);
         exec(ffmpegCommond, (error, stdout, stderr) => {
             if (error) {
-                reject(error);
+                reject({
+                    flag: "error",
+                    messgae: error,
+                });
                 return;
             }
-
-            if (stderr) {
-                reject(stderr);
-                return;
-            }
-
-            resolve(stdout);
+            resolve({
+                flag: "success",
+                messgae: "",
+            });
         });
     });
+}
+
+//生成音频转码命令
+/**
+ *
+ * @param {*} exportExt 需要转换的格式
+ */
+function genAudioFormatCommond(inputFilePath, exportExt) {
+    let fileExtensionName = Path.extname(inputFilePath);
+    let formatCommond = "";
+    switch (exportExt) {
+        case "mp3":
+            fileExtensionName = ".mp3";
+            formatCommond = `-c:a "libmp3lame" -b:a "192k" -ar "44100"`;
+            break;
+        case "m4a":
+            fileExtensionName = ".m4a";
+            formatCommond = `-c:a "aac" -vn -b:a "192k" -ar "48000" -f "ipod"`;
+            break;
+        case "m4r":
+            fileExtensionName = ".m4r";
+            formatCommond = `-c:a "aac" -vn -b:a "128k" -ar "44100" -ac "2" -f "ipod"`;
+            break;
+        case "flac":
+            fileExtensionName = ".flac";
+            formatCommond = `-c:a "flac" -compression_level "5" -ar "96000"`;
+            break;
+        case "wav":
+            fileExtensionName = ".wav";
+            formatCommond = `-c:a "pcm_s16le" -ar "44100"`;
+            break;
+    }
+
+    return {
+        fileExtensionName,
+        formatCommond,
+    };
 }
 
 //生成音频剪切时间命令
