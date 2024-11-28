@@ -5,6 +5,8 @@ const zlib = require("zlib");
 const crypto = require("crypto");
 const { PassThrough } = require("stream");
 const { exec, execFile, spawn } = require("child_process");
+const { promisify } = require("util");
+const pipeline = promisify(require("stream").pipeline);
 
 let ffmpegFilePath = Path.join(utools.getPath("downloads"), "ffmpeg.exe");
 let audioOutputDataPath = utools.getPath("downloads");
@@ -47,10 +49,14 @@ function downloadFFmpeg(fileSavePath) {
                 "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz";
         }
 
-        downloadAndExtractGz(downloaUrl, fileSavePath).then(() => {
-            console.log("ok");
-            resolve();
-        });
+        downloadAndExtractGz(downloaUrl, fileSavePath)
+            .then(() => {
+                console.log("ok");
+                resolve();
+            })
+            .catch((err) => {
+                console.error("err", err);
+            });
 
         // https
         //     .get(downloaUrl, (res) => {
@@ -76,50 +82,77 @@ function downloadFFmpeg(fileSavePath) {
 }
 
 // 下载并解压.gz文件
+// function downloadAndExtractGz(url, outputFilePath) {
+//     return new Promise((resolve, reject) => {
+//         // 创建文件写入流
+//         const tempFilePath = Path.join(__dirname, "temp.gz");
+//         const fileStream = fs.createWriteStream(tempFilePath);
+
+//         // 下载 .gz 文件
+//         http.get(url, (response) => {
+//             response.pipe(fileStream);
+//             fileStream.on("finish", () => {
+//                 fileStream.close();
+
+//                 // 解压缩 .gz 文件
+//                 const gzipStream = fs
+//                     .createReadStream(tempFilePath)
+//                     .pipe(zlib.createGunzip());
+//                 const outputStream = fs.createWriteStream(outputFilePath);
+
+//                 gzipStream.pipe(outputStream);
+//                 fileStream.on("finish", () => {
+//                     // 删除临时文件
+//                     fs.unlinkSync(tempFilePath);
+//                     if (!utools.isWindows()) {
+//                         setExecutablePermission(outputStream);
+//                     }
+//                     console.log(`File saved to ${outputFilePath}`);
+//                     resolve(`File saved to ${outputFilePath}`);
+//                 });
+
+//                 gzipStream.on("error", (err) => reject(err));
+//             });
+//         }).on("error", (err) => reject(err));
+//     });
+// }
+
 function downloadAndExtractGz(url, outputFilePath) {
     return new Promise((resolve, reject) => {
-        // 创建文件写入流
-        const tempFilePath = Path.join(__dirname, "temp.gz");
-        const fileStream = fs.createWriteStream(tempFilePath);
-
-        // 下载 .gz 文件
         http.get(url, (response) => {
-            response.pipe(fileStream);
-            fileStream.on("finish", () => {
-                fileStream.close();
+            if (response.statusCode !== 200) {
+                console.error(
+                    `Failed to fetch file. Status code: ${response.statusCode}`
+                );
+                return;
+            }
 
-                // 解压缩 .gz 文件
-                const gzipStream = fs
-                    .createReadStream(tempFilePath)
-                    .pipe(zlib.createGunzip());
-                const outputStream = fs.createWriteStream(outputFilePath);
+            // 解压 .gz 文件并保存内容
+            const gunzip = zlib.createGunzip();
+            const writeStream = fs.createWriteStream(outputFilePath);
 
-                gzipStream.pipe(outputStream);
-                gzipStream.on("end", () => {
-                    // 删除临时文件
-                    fs.unlinkSync(tempFilePath);
-                    if (!utools.isWindows()) {
-                        setExecutablePermission(outputStream);
-                    }
-                    console.log(`File saved to ${outputFilePath}`);
-                    resolve(`File saved to ${outputFilePath}`);
+            response
+                .pipe(gunzip) // 解压缩流
+                .pipe(writeStream) // 写入解压后的数据
+                .on("finish", () => {
+                    writeStream.close()
+                    console.log("Download and extraction completed.");
+                    setExecutablePermission(outputFilePath)
+                    resolve();
+                })
+                .on("error", (err) => {
+                    console.error(`Error during extraction: ${err.message}`);
                 });
-
-                gzipStream.on("error", (err) => reject(err));
-            });
-        }).on("error", (err) => reject(err));
+        }).on("error", (err) => {
+            console.error(`Download failed: ${err.message}`);
+        });
     });
 }
 
 // 设置文件为可执行 (Linux/macOS)
-const setExecutablePermission = async (filePath) => {
-    return new Promise((resolve, reject) => {
-        exec(`chmod +x ${filePath}`, (err) => {
-            if (err) reject(err);
-            else resolve();
-        });
-    });
-};
+function setExecutablePermission(filePath) {
+    fs.chmodSync(filePath, 0o755);
+}
 
 //检查有无ffmpeg
 function checkIfFFmpegExist() {
