@@ -135,9 +135,9 @@ function downloadAndExtractGz(url, outputFilePath) {
                 .pipe(gunzip) // 解压缩流
                 .pipe(writeStream) // 写入解压后的数据
                 .on("finish", () => {
-                    writeStream.close()
+                    writeStream.close();
                     console.log("Download and extraction completed.");
-                    setExecutablePermission(outputFilePath)
+                    setExecutablePermission(outputFilePath);
                     resolve();
                 })
                 .on("error", (err) => {
@@ -295,6 +295,8 @@ function convertAudioToBuffer(filePath) {
 /**
  *
  * @param {*} inputFilePath 输入音频路径
+ * @param {*} formatedStartTime 处理后的剪切开始时间 00:00:00
+ * @param {*} formatedDuration 处理后的剪切时长 00:00:00
  * @param {*} startTime 剪切开始时间
  * @param {*} duration 剪切时长
  * @param {*} bands 均衡器数据
@@ -305,6 +307,8 @@ function convertAudioToBuffer(filePath) {
  */
 function cutAudio(
     inputFilePath,
+    formatedStartTime,
+    formatedDuration,
     startTime,
     duration,
     bands,
@@ -337,7 +341,13 @@ function cutAudio(
             console.log("afadeCommond", afadeCommond);
         }
 
-        let cutCommond = genAudioCutCommond(cutMode, startTime, duration);
+        let cutCommond = genAudioCutCommond(
+            cutMode,
+            startTime,
+            duration,
+            formatedStartTime,
+            formatedDuration
+        );
 
         // const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} ${equalizerCommond} ${afadeCommond} "${outputFilePath}"`;
         const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" ${equalizerCommond} ${afadeCommond} ${cutCommond} ${formatCommond} "${outputFilePath}"`;
@@ -401,11 +411,17 @@ function genAudioFormatCommond(inputFilePath, exportExt) {
  *
  * @param {*} cutMode 1: 留中间； 2: 留俩边;
  */
-function genAudioCutCommond(cutMode, startTime, duration) {
+function genAudioCutCommond(
+    cutMode,
+    startTime,
+    duration,
+    formatedStartTime,
+    formatedDuration
+) {
     const endTime = startTime + duration;
     let cutCommond = "";
     if (cutMode === "1") {
-        cutCommond = `-ss ${startTime} -t ${duration}`;
+        cutCommond = `-ss ${formatedStartTime} -t ${formatedDuration}`;
     } else if (cutMode === "2") {
         cutCommond = `-filter_complex \
         "[0]atrim=0:${startTime},asetpts=PTS-STARTPTS[ahead]; \
