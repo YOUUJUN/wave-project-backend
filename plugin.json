@@ -4,7 +4,7 @@
     "pluginName": "音频处理",
     "description": "音频分段裁剪、音量渐变调整、均衡器、音频转码导出功能",
     "main": "index.html",
-    "logo": "logo.jpg",
+    "logo": "logo.png",
     "preload": "preload.js",
     "features": [
         {
