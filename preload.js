@@ -309,6 +309,9 @@ function cutAudio(
                 });
                 return;
             }
+
+            utools.shellOpenPath(Path.dirname(outputFilePath));
+
             resolve({
                 flag: "success",
                 messgae: "",
