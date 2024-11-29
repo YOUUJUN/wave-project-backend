@@ -2,15 +2,15 @@
     "name": "mvp-audio",
     "version": "1.0.0",
     "pluginName": "音频处理",
-    "description": "音频文件剪辑、转码、本地录音功能",
+    "description": "音频分段裁剪、音量渐变调整、均衡器、音频转码导出功能",
     "main": "index.html",
-    "logo": "logo.png",
+    "logo": "logo.jpg",
     "preload": "preload.js",
     "features": [
         {
-            "code": "demo-helloworld",
-            "explain": "helloworld示例插件",
-            "cmds": ["hello"]
+            "code": "audio-cut",
+            "explain": "音频剪辑",
+            "cmds": ["音频", "剪辑", "剪切", "音频剪辑"]
         }
     ],
     "development": {

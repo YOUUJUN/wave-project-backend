@@ -5,8 +5,6 @@ const zlib = require("zlib");
 const crypto = require("crypto");
 const { PassThrough } = require("stream");
 const { exec, execFile, spawn } = require("child_process");
-const { promisify } = require("util");
-const pipeline = promisify(require("stream").pipeline);
 
 let ffmpegFilePath = Path.join(utools.getPath("downloads"), "ffmpeg.exe");
 let audioOutputDataPath = utools.getPath("downloads");
