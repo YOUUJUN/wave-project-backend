@@ -2,7 +2,7 @@
     "name": "mvp-audio",
     "version": "1.0.0",
     "pluginName": "音频处理",
-    "description": "音频分段裁剪、音量渐变调整、均衡器、音频转码导出功能",
+    "description": "音频分段裁剪、音量渐变调整、均衡器、音频转码导出、视频中音频导出调整功能",
     "main": "index.html",
     "logo": "logo.png",
     "preload": "preload.js",
