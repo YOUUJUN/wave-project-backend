@@ -6,14 +6,19 @@ const crypto = require("crypto");
 const { PassThrough } = require("stream");
 const { exec, execFile, spawn } = require("child_process");
 
-let ffmpegFilePath = Path.join(utools.getPath("downloads"), "ffmpeg.exe");
+let ffmpegFilePath = "";
+if (utools.isWindows()) {
+    ffmpegFilePath = Path.join(utools.getPath("downloads"), "ffmpeg.exe");
+} else if (utools.isMacOS() || tools.isLinux()) {
+    ffmpegFilePath = Path.join(utools.getPath("downloads"), "ffmpeg");
+}
+
 let audioOutputDataPath = utools.getPath("downloads");
 
 //初始化用户数据
 function initUserData() {
     const audioOutputData = utools.db.get("audioOutputPath");
     const ffmpegData = utools.db.get("ffmpeg");
-    console.log("ffmpegData", ffmpegData, audioOutputData);
 
     if (ffmpegData) {
         let path = ffmpegData.data;
@@ -102,8 +107,6 @@ function setExecutablePermission(filePath) {
 
 //检查有无ffmpeg
 function checkIfFFmpegExist() {
-    console.log("ffmpegFilePath", ffmpegFilePath);
-
     return new Promise((resolve, reject) => {
         const ffmpegCommond = `"${ffmpegFilePath}" -version`;
         exec(ffmpegCommond, (error, stdout, stderr) => {
@@ -452,9 +455,16 @@ function addOrUpdataDataBase(id, data) {
 
 //用户选择保存路径保存ffmpeg
 async function userCtrlDownloadFFmpeg() {
+    let defaultPath = "";
+    if (utools.isWindows()) {
+        defaultPath = "ffmpeg.exe";
+    } else if (utools.isMacOS() || tools.isLinux()) {
+        defaultPath = "ffmpeg";
+    }
+
     const savePath = utools.showSaveDialog({
         title: "FFmpeg存放路径",
-        defaultPath: "ffmpeg.exe",
+        defaultPath,
         buttonLabel: "保存",
     });
     console.log("savePath", savePath);
