@@ -330,6 +330,11 @@ function genAudioFormatCommond(inputFilePath, exportExt) {
     let fileExtensionName = Path.extname(inputFilePath);
     let formatCommond = "";
     switch (exportExt) {
+        case "origin":
+            if (fileExtensionName === ".m4r") {
+                formatCommond = `-c:a "aac" -vn -b:a "128k" -ar "44100" -ac "2" -f "ipod"`;
+            }
+            break;
         case "mp3":
             fileExtensionName = ".mp3";
             formatCommond = `-c:a "libmp3lame" -b:a "192k" -ar "44100"`;
