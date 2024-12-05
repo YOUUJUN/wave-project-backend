@@ -223,19 +223,22 @@ function convertAudioToBuffer(filePath) {
             chunks.push(chunk);
         });
 
-        // 监听结束事件
-        ffmpegProcess.stdout.on("end", () => {
-            const buffer = Buffer.concat(chunks); // 将数据块组合成 Buffer
-            resolve(buffer);
+        ffmpegProcess.stderr.on("data", (data) => {
+            console.error(`ffmpeg 错误信息: ${data}`);
+            if (data.includes("Invalid data found when processing input")) {
+                resolve("baddata");
+                return;
+            }
+            // 监听结束事件
+            ffmpegProcess.stdout.on("end", () => {
+                const buffer = Buffer.concat(chunks); // 将数据块组合成 Buffer
+                resolve(buffer);
+            });
         });
 
         // 错误处理
         ffmpegProcess.on("error", (err) => {
             reject(err);
-        });
-
-        ffmpegProcess.stderr.on("data", (data) => {
-            console.error(`ffmpeg 错误信息: ${data}`);
         });
     });
 }
@@ -409,7 +412,7 @@ function genAudioEqualizerCommond(bandsData) {
             return `equalizer=f=${frequencyValue}:t=q:w=1:g=${value}`;
         })
         .join(",");
-        
+
     return equalizerCommond;
 }
 
