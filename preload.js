@@ -298,8 +298,22 @@ function cutAudio(
             formatedDuration
         );
 
-        // const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" -ss ${startTime} -t ${duration} ${equalizerCommond} ${afadeCommond} "${outputFilePath}"`;
-        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" ${equalizerCommond} ${afadeCommond} ${cutCommond} ${formatCommond} "${outputFilePath}"`;
+        const complexFilters = [];
+        if (equalizerCommond) {
+            complexFilters.push(equalizerCommond);
+        }
+
+        if (afadeCommond) {
+            complexFilters.push(afadeCommond);
+        }
+
+        complexFilters.push(cutCommond);
+
+        let complexCommond = `-filter_complex "${complexFilters.join(
+            ", "
+        )}" -map "[out]"`;
+
+        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" ${complexCommond} ${formatCommond} "${outputFilePath}"`;
 
         console.log("ffmpegCommond", ffmpegCommond);
         exec(ffmpegCommond, (error, stdout, stderr) => {
@@ -378,13 +392,10 @@ function genAudioCutCommond(
     const endTime = startTime + duration;
     let cutCommond = "";
     if (cutMode === "1") {
-        cutCommond = `-ss ${formatedStartTime} -t ${formatedDuration}`;
+        // cutCommond = `-ss ${formatedStartTime} -t ${formatedDuration}`;
+        cutCommond = `atrim=start=${startTime}:duration=${duration},asetpts=PTS-STARTPTS[out]`;
     } else if (cutMode === "2") {
-        cutCommond = `-filter_complex \
-        "[0]atrim=0:${startTime},asetpts=PTS-STARTPTS[ahead]; \
-         [0]atrim=${endTime},asetpts=PTS-STARTPTS[atail]; \
-         [ahead][atail]concat=n=2:v=0:a=1[out]" \
-         -map "[out]"`;
+        cutCommond = `atrim=0:${startTime},asetpts=PTS-STARTPTS[ahead]; [0]atrim=${endTime},asetpts=PTS-STARTPTS[atail]; [ahead][atail]concat=n=2:v=0:a=1[out]`;
     }
 
     return cutCommond;
@@ -398,15 +409,14 @@ function genAudioEqualizerCommond(bandsData) {
             return `equalizer=f=${frequencyValue}:t=q:w=1:g=${value}`;
         })
         .join(",");
-
-    let ffmpegCommond = `-af "${equalizerCommond}"`;
-    return ffmpegCommond;
+        
+    return equalizerCommond;
 }
 
 //音频音量淡出滤镜
 function genAudioAfadeCommond(envelopesData) {
     const volumeExpression = generateVolumeExpression(envelopesData);
-    let afadeCommond = `-af "volume='${volumeExpression}':eval=frame"`;
+    let afadeCommond = `volume='${volumeExpression}':eval=frame`;
     return afadeCommond;
 }
 
