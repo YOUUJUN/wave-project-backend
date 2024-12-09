@@ -225,7 +225,10 @@ function convertAudioToBuffer(filePath) {
 
         ffmpegProcess.stderr.on("data", (data) => {
             console.error(`ffmpeg 错误信息: ${data}`);
-            if (data.includes("Invalid data found when processing input")) {
+            if (
+                data.includes("Invalid data found when processing input") ||
+                data.includes("does not contain any stream")
+            ) {
                 resolve("baddata");
                 return;
             }
