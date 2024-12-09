@@ -457,6 +457,40 @@ function generateVolumeExpression(points) {
     return expressions.join("+");
 }
 
+//提取视频文件中音频导出
+function extractAudioFromVideoFile(videoPath, exportExt) {
+    return new Promise((resolve, reject) => {
+        const { fileExtensionName, formatCommond } = genAudioFormatCommond(
+            videoPath,
+            exportExt
+        );
+
+        const randowId = crypto.randomBytes(16).toString("hex");
+        const outputFileName = `${randowId}${fileExtensionName}`;
+        const outputFilePath = Path.join(audioOutputDataPath, outputFileName);
+
+        const ffmpegCommond = `"${ffmpegFilePath}" -i "${videoPath}" ${formatCommond} "${outputFilePath}"`;
+
+        console.log("ffmpegCommond", ffmpegCommond);
+        exec(ffmpegCommond, (error, stdout, stderr) => {
+            if (error) {
+                reject({
+                    flag: "error",
+                    messgae: error,
+                });
+                return;
+            }
+
+            utools.shellOpenPath(Path.dirname(outputFilePath));
+
+            resolve({
+                flag: "success",
+                messgae: "",
+            });
+        });
+    });
+}
+
 //在数据库新增或更新数据
 function addOrUpdataDataBase(id, data) {
     const result = utools.db.get(id);
@@ -519,4 +553,5 @@ window.services = {
     checkIfFFmpegExist,
     addOrUpdataDataBase,
     getfileNameByPath,
+    extractAudioFromVideoFile,
 };

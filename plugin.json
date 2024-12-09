@@ -6,11 +6,102 @@
     "main": "index.html",
     "logo": "logo.png",
     "preload": "preload.js",
+
     "features": [
         {
             "code": "audio-cut",
             "explain": "音频剪辑",
             "cmds": ["音频", "剪辑", "剪切", "音频剪辑"]
+        },
+
+        {
+            "code": "audio-process",
+            "explain": "处理音频",
+            "cmds": [
+                {
+                    "type": "files",
+                    "label": "处理音频",
+                    "fileType": "file",
+                    "match": "/.(?:mp3|m4a|m4r|flac|wav|ogg|oga|aiff|aif|wma|mka|aac)$/i",
+                    "minLength": 1,
+                    "maxLength": 1
+                }
+            ]
+        },
+
+        {
+            "code": "extract-mp3",
+            "explain": "提取音频为mp3格式导出",
+            "cmds": [
+                {
+                    "type": "files",
+                    "label": "提取音频为mp3格式导出",
+                    "fileType": "file",
+                    "match": "/.(?:mp4|m4v|mov|qt|avi|flv|wmv|asf|mpeg|mpg|vob|mkv|rm|rmvb|ts|dat|3gp|3g2)$/i",
+                    "minLength": 1,
+                    "maxLength": 1
+                }
+            ]
+        },
+
+        {
+            "code": "extract-m4a",
+            "explain": "提取音频为m4a格式导出",
+            "cmds": [
+                {
+                    "type": "files",
+                    "label": "提取音频为m4a格式导出",
+                    "fileType": "file",
+                    "match": "/.(?:mp4|m4v|mov|qt|avi|flv|wmv|asf|mpeg|mpg|vob|mkv|rm|rmvb|ts|dat|3gp|3g2)$/i",
+                    "minLength": 1,
+                    "maxLength": 1
+                }
+            ]
+        },
+
+        {
+            "code": "extract-m4r",
+            "explain": "提取音频为m4r格式导出",
+            "cmds": [
+                {
+                    "type": "files",
+                    "label": "提取音频为m4r格式导出",
+                    "fileType": "file",
+                    "match": "/.(?:mp4|m4v|mov|qt|avi|flv|wmv|asf|mpeg|mpg|vob|mkv|rm|rmvb|ts|dat|3gp|3g2)$/i",
+                    "minLength": 1,
+                    "maxLength": 1
+                }
+            ]
+        },
+
+        {
+            "code": "extract-flac",
+            "explain": "提取音频为flac格式导出",
+            "cmds": [
+                {
+                    "type": "files",
+                    "label": "提取音频为flac格式导出",
+                    "fileType": "file",
+                    "match": "/.(?:mp4|m4v|mov|qt|avi|flv|wmv|asf|mpeg|mpg|vob|mkv|rm|rmvb|ts|dat|3gp|3g2)$/i",
+                    "minLength": 1,
+                    "maxLength": 1
+                }
+            ]
+        },
+
+        {
+            "code": "extract-wav",
+            "explain": "提取音频为wav格式导出",
+            "cmds": [
+                {
+                    "type": "files",
+                    "label": "提取音频为wav格式导出",
+                    "fileType": "file",
+                    "match": "/.(?:mp4|m4v|mov|qt|avi|flv|wmv|asf|mpeg|mpg|vob|mkv|rm|rmvb|ts|dat|3gp|3g2)$/i",
+                    "minLength": 1,
+                    "maxLength": 1
+                }
+            ]
         }
     ],
     "development": {
