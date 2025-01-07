@@ -536,6 +536,36 @@ function getfileNameByPath(filePath) {
     return Path.basename(filePath);
 }
 
+//通过音频路径获取音频时长
+function getAudioDuration(filePath) {
+    return new Promise((resolve, reject) => {
+        const ffmpegCommond = `"${ffmpegFilePath}" -i "${filePath}" -f "null" -`;
+        exec(ffmpegCommond, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error: ${error.message}`);
+                return;
+            }
+
+            // 解析 stderr 中的时长信息
+            const durationMatch = stderr.match(
+                /Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/
+            );
+            if (durationMatch) {
+                const [hours, minutes, seconds, milliseconds] = durationMatch
+                    .slice(1)
+                    .map(Number);
+                const totalSeconds =
+                    hours * 3600 + minutes * 60 + seconds + milliseconds / 100;
+                console.log(`Audio duration in seconds: ${totalSeconds}`);
+                resolve(totalSeconds);
+            } else {
+                console.log("Duration information not found.");
+                reject();
+            }
+        });
+    });
+}
+
 //初始化插件
 utools.onPluginEnter(() => {
     initUserData();
@@ -553,5 +583,6 @@ window.services = {
     checkIfFFmpegExist,
     addOrUpdataDataBase,
     getfileNameByPath,
+    getAudioDuration,
     extractAudioFromVideoFile,
 };
