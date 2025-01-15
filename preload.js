@@ -566,6 +566,31 @@ function getAudioDuration(filePath) {
     });
 }
 
+//混入音频
+function mixAudio(audioInfos) {
+    const { audio1Path, audio2Path } = audioInfos;
+    const outputFilePath = Path.join(audioOutputDataPath, "test.mp3");
+    return new Promise((resolve, reject) => {
+        const ffmpegCommand = `"${ffmpegFilePath}" -i "${audio1Path}" -i "${audio2Path}" -filter_complex "[0:a]adelay=2000|2000[first];[1:a]adelay=15000|15000[delayed];[first][delayed]amix=inputs=2:duration=longest" -c:a "libmp3lame" -b:a "192k" -ar "44100" "${outputFilePath}"`;
+        exec(ffmpegCommand, (error, stdout, stderr) => {
+            if (error) {
+                reject({
+                    flag: "error",
+                    messgae: error,
+                });
+                return;
+            }
+
+            // utools.shellOpenPath(Path.dirname(outputFilePath));
+
+            // resolve({
+            //     flag: "success",
+            //     messgae: "",
+            // });
+        });
+    });
+}
+
 //初始化插件
 utools.onPluginEnter(() => {
     initUserData();
@@ -585,4 +610,5 @@ window.services = {
     getfileNameByPath,
     getAudioDuration,
     extractAudioFromVideoFile,
+    mixAudio,
 };
