@@ -349,37 +349,93 @@ function cutAudio(
 function genAudioFormatCommond(inputFilePath, exportExt) {
     let fileExtensionName = Path.extname(inputFilePath);
     let formatCommond = "";
+    let formatCommondArr = [];
     switch (exportExt) {
         case "origin":
             if (fileExtensionName === ".m4r") {
                 formatCommond = `-c:a "aac" -vn -b:a "128k" -ar "44100" -ac "2" -f "ipod"`;
+                formatCommondArr = [
+                    "-c:a",
+                    "aac",
+                    "-vn",
+                    "-b:a",
+                    "128k",
+                    "-ar",
+                    "44100",
+                    "-ac",
+                    "2",
+                    "-f",
+                    "ipod",
+                ];
             }
             break;
         case "mp3":
             fileExtensionName = ".mp3";
             formatCommond = `-c:a "libmp3lame" -b:a "192k" -ar "44100"`;
+            formatCommondArr = [
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "192k",
+                "-ar",
+                "44100",
+            ];
             break;
         case "m4a":
             fileExtensionName = ".m4a";
             formatCommond = `-c:a "aac" -vn -b:a "192k" -ar "48000" -f "ipod"`;
+            formatCommondArr = [
+                "-c:a",
+                "aac",
+                "-vn",
+                "-b:a",
+                "192k",
+                "-ar",
+                "48000",
+                "-f",
+                "ipod",
+            ];
             break;
         case "m4r":
             fileExtensionName = ".m4r";
             formatCommond = `-c:a "aac" -vn -b:a "128k" -ar "44100" -ac "2" -f "ipod"`;
+            formatCommondArr = [
+                "-c:a",
+                "aac",
+                "-vn",
+                "-b:a",
+                "128k",
+                "-ar",
+                "44100",
+                "-ac",
+                "2",
+                "-f",
+                "ipod",
+            ];
             break;
         case "flac":
             fileExtensionName = ".flac";
             formatCommond = `-c:a "flac" -compression_level "5" -ar "96000"`;
+            formatCommondArr = [
+                "-c:a",
+                "flac",
+                "-compression_level",
+                "5",
+                "-ar",
+                "96000",
+            ];
             break;
         case "wav":
             fileExtensionName = ".wav";
             formatCommond = `-c:a "pcm_s16le" -ar "44100"`;
+            formatCommondArr = ["-c:a", "pcm_s16le", "-ar", "44100"];
             break;
     }
 
     return {
         fileExtensionName,
         formatCommond,
+        formatCommondArr,
     };
 }
 
@@ -567,12 +623,53 @@ function getAudioDuration(filePath) {
 }
 
 //混入音频
-function mixAudio(audioInfos) {
-    const { audio1Path, audio2Path } = audioInfos;
-    const outputFilePath = Path.join(audioOutputDataPath, "test.mp3");
+function mixAudio(audioInfos, exportExt) {
+    const inputAudioCommond = audioInfos
+        .map((item, index) => {
+            return ["-i", item.path];
+        })
+        .flat();
+
+    const delayCommond = audioInfos
+        .map((item, index) => {
+            return `[${index}:a]adelay=${item.startPosition * 1000}|${
+                item.startPosition * 1000
+            }[audio${index}]`;
+        })
+        .join(";");
+
+    const headStr = audioInfos
+        .map((item, index) => {
+            return `[audio${index}]`;
+        })
+        .join("");
+
+    const filterCommond = `${delayCommond};${headStr}amix=inputs=${audioInfos.length}:duration=longest`;
+
+    const { fileExtensionName, formatCommondArr } = genAudioFormatCommond(
+        audioInfos[0].path,
+        exportExt
+    );
+
+    console.log("formatCommondArr", formatCommondArr);
+
+    const randowId = crypto.randomBytes(16).toString("hex");
+    const outputFileName = `${randowId}${fileExtensionName}`;
+    const outputFilePath = Path.join(audioOutputDataPath, outputFileName);
+
     return new Promise((resolve, reject) => {
-        const ffmpegCommand = `"${ffmpegFilePath}" -i "${audio1Path}" -i "${audio2Path}" -filter_complex "[0:a]adelay=2000|2000[first];[1:a]adelay=15000|15000[delayed];[first][delayed]amix=inputs=2:duration=longest" -c:a "libmp3lame" -b:a "192k" -ar "44100" "${outputFilePath}"`;
-        exec(ffmpegCommand, (error, stdout, stderr) => {
+        // const ffmpegCommand = `"${ffmpegFilePath}" -i "${audio1Path}" -i "${audio2Path}" -filter_complex "[0:a]adelay=2000|2000[first];[1:a]adelay=15000|15000[delayed];[first][delayed]amix=inputs=2:duration=longest" -c:a "libmp3lame" -b:a "192k" -ar "44100" "${outputFilePath}"`;
+        const ffmpegArgs = [
+            ...inputAudioCommond,
+            "-filter_complex",
+            filterCommond,
+            ...formatCommondArr,
+            outputFilePath,
+        ];
+
+        console.log("ffmpegArgs", ffmpegArgs);
+
+        execFile(ffmpegFilePath, ffmpegArgs, (error, stdout, stderr) => {
             if (error) {
                 reject({
                     flag: "error",
@@ -581,12 +678,12 @@ function mixAudio(audioInfos) {
                 return;
             }
 
-            // utools.shellOpenPath(Path.dirname(outputFilePath));
+            utools.shellOpenPath(Path.dirname(outputFilePath));
 
-            // resolve({
-            //     flag: "success",
-            //     messgae: "",
-            // });
+            resolve({
+                flag: "success",
+                messgae: "",
+            });
         });
     });
 }
