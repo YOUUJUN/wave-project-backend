@@ -688,6 +688,60 @@ function mixAudio(audioInfos, exportExt) {
     });
 }
 
+//通过路径获取本地文件
+function getLocalFile(filePath) {
+    return new Promise((resolve, reject) => {
+        fs.readFile(filePath, (err, data) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(data);
+            }
+        });
+    });
+}
+
+//用户选择保存路径下载文件
+function userCtrlDownloadFile(url, fileName) {
+    return new Promise((resolve, reject) => {
+        const savePath = utools.showSaveDialog({
+            title: "文件存放路径",
+            defaultPath: fileName,
+            buttonLabel: "保存",
+        });
+
+        if (savePath?.length > 0) {
+            https
+                .get(url, (response) => {
+                    if (response.statusCode !== 200) {
+                        console.error(
+                            `下载资源获取失败: ${response.statusCode}`
+                        );
+                        reject();
+                        return;
+                    }
+
+                    const writeStream = fs.createWriteStream(savePath);
+
+                    response
+                        .pipe(writeStream) // 写入解压后的数据
+                        .on("finish", () => {
+                            writeStream.close(() => {
+                                console.log("下载完成.");
+                                utools.shellOpenPath(Path.dirname(savePath));
+                                resolve();
+                            });
+                        });
+                })
+                .on("error", (err) => {
+                    fs.unlink(savePath, () => {});
+                    console.error(`下载失败: ${err.message}`);
+                    reject();
+                });
+        }
+    });
+}
+
 //初始化插件
 utools.onPluginEnter(() => {
     initUserData();
@@ -708,4 +762,6 @@ window.services = {
     getAudioDuration,
     extractAudioFromVideoFile,
     mixAudio,
+    getLocalFile,
+    userCtrlDownloadFile,
 };
