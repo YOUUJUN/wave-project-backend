@@ -588,8 +588,21 @@ async function userCtrlDownloadFFmpeg() {
 }
 
 //通过音频路径获取音频文件名称
-function getfileNameByPath(filePath) {
-    return Path.basename(filePath);
+function getfileNameByPath(filePath, ifExtension = true) {
+    const fileNameWithExtension = Path.basename(filePath);
+    const fileExtension = Path.extname(filePath);
+
+    // 通过字符串操作去掉扩展名，得到不带后缀的文件名
+    const fileNameWithoutExtension = fileNameWithExtension.replace(
+        fileExtension,
+        ""
+    );
+
+    if (ifExtension) {
+        return fileNameWithExtension;
+    } else {
+        return fileNameWithoutExtension;
+    }
 }
 
 //通过音频路径获取音频时长
