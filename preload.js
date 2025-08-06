@@ -346,14 +346,17 @@ function cutAudio(
  *
  * @param {*} exportExt 需要转换的格式
  */
-function genAudioFormatCommond(inputFilePath, exportExt) {
+function genAudioFormatCommond(inputFilePath, exportExt, sampleRate) {
+    console.log("exportExt", exportExt);
     let fileExtensionName = Path.extname(inputFilePath);
     let formatCommond = "";
     let formatCommondArr = [];
+    let defaultSampleRate = "";
     switch (exportExt) {
         case "origin":
             if (fileExtensionName === ".m4r") {
-                formatCommond = `-c:a "aac" -vn -b:a "128k" -ar "44100" -ac "2" -f "ipod"`;
+                defaultSampleRate = sampleRate || "44100";
+                formatCommond = `-c:a "aac" -vn -b:a "128k" -ar ${defaultSampleRate} -ac "2" -f "ipod"`;
                 formatCommondArr = [
                     "-c:a",
                     "aac",
@@ -361,7 +364,7 @@ function genAudioFormatCommond(inputFilePath, exportExt) {
                     "-b:a",
                     "128k",
                     "-ar",
-                    "44100",
+                    defaultSampleRate,
                     "-ac",
                     "2",
                     "-f",
@@ -370,20 +373,22 @@ function genAudioFormatCommond(inputFilePath, exportExt) {
             }
             break;
         case "mp3":
+            defaultSampleRate = sampleRate || "44100";
             fileExtensionName = ".mp3";
-            formatCommond = `-c:a "libmp3lame" -b:a "192k" -ar "44100"`;
+            formatCommond = `-c:a "libmp3lame" -b:a "192k" -ar ${defaultSampleRate}`;
             formatCommondArr = [
                 "-c:a",
                 "libmp3lame",
                 "-b:a",
                 "192k",
                 "-ar",
-                "44100",
+                defaultSampleRate,
             ];
             break;
         case "m4a":
+            defaultSampleRate = sampleRate || "48000";
             fileExtensionName = ".m4a";
-            formatCommond = `-c:a "aac" -vn -b:a "192k" -ar "48000" -f "ipod"`;
+            formatCommond = `-c:a "aac" -vn -b:a "192k" -ar ${defaultSampleRate} -f "ipod"`;
             formatCommondArr = [
                 "-c:a",
                 "aac",
@@ -391,14 +396,15 @@ function genAudioFormatCommond(inputFilePath, exportExt) {
                 "-b:a",
                 "192k",
                 "-ar",
-                "48000",
+                defaultSampleRate,
                 "-f",
                 "ipod",
             ];
             break;
         case "m4r":
+            defaultSampleRate = sampleRate || "44100";
             fileExtensionName = ".m4r";
-            formatCommond = `-c:a "aac" -vn -b:a "128k" -ar "44100" -ac "2" -f "ipod"`;
+            formatCommond = `-c:a "aac" -vn -b:a "128k" -ar ${defaultSampleRate} -ac "2" -f "ipod"`;
             formatCommondArr = [
                 "-c:a",
                 "aac",
@@ -406,7 +412,7 @@ function genAudioFormatCommond(inputFilePath, exportExt) {
                 "-b:a",
                 "128k",
                 "-ar",
-                "44100",
+                defaultSampleRate,
                 "-ac",
                 "2",
                 "-f",
@@ -414,8 +420,9 @@ function genAudioFormatCommond(inputFilePath, exportExt) {
             ];
             break;
         case "flac":
+            defaultSampleRate = sampleRate || "96000";
             fileExtensionName = ".flac";
-            formatCommond = `-c:a "flac" -compression_level "5" -ar "96000"`;
+            formatCommond = `-c:a "flac" -compression_level "5" -ar ${defaultSampleRate}`;
             formatCommondArr = [
                 "-c:a",
                 "flac",
@@ -426,9 +433,10 @@ function genAudioFormatCommond(inputFilePath, exportExt) {
             ];
             break;
         case "wav":
+            defaultSampleRate = sampleRate || "44100";
             fileExtensionName = ".wav";
-            formatCommond = `-c:a "pcm_s16le" -ar "44100"`;
-            formatCommondArr = ["-c:a", "pcm_s16le", "-ar", "44100"];
+            formatCommond = `-c:a "pcm_s16le" -ar ${defaultSampleRate}`;
+            formatCommondArr = ["-c:a", "pcm_s16le", "-ar", defaultSampleRate];
             break;
     }
 
@@ -614,7 +622,7 @@ function getAudioDuration(filePath) {
                 console.error(`Error: ${error.message}`);
                 return;
             }
-
+            console.log("stderr", stderr);
             // 解析 stderr 中的时长信息
             const durationMatch = stderr.match(
                 /Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/
@@ -755,6 +763,144 @@ function userCtrlDownloadFile(url, fileName) {
     });
 }
 
+//获取文件基本信息
+function getFileStat(filePath) {
+    return fs.statSync(filePath);
+}
+
+//通过音频路径获取音视频基本信息
+function getMediaBaseInfo(filePath) {
+    return new Promise((resolve, reject) => {
+        const ffmpegCommond = `"${ffmpegFilePath}" -i "${filePath}" -f "null" -`;
+        const result = {
+            path: filePath,
+            format: null,
+            duration: null,
+            bitRate: null,
+            startTime: null,
+            size: null,
+            metadata: {},
+            video: [],
+            audio: [],
+            chapters: [],
+        };
+        exec(ffmpegCommond, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error: ${error.message}`);
+                reject();
+                return;
+            }
+
+            // 1. 文件大小（字节）
+            try {
+                result.size = fs.statSync(filePath).size;
+            } catch (_) {}
+
+            // 2. Input #0 行 -> 容器格式
+            const inputMatch = stderr.match(/Input #0,\s*([^,]+)/);
+            if (inputMatch) result.format = inputMatch[1].trim();
+
+            // 3. Metadata 块（标题、艺术家、专辑……）
+            const metaLines = stderr.matchAll(/^\s*(\w+)\s*:\s*(.+)$/gm);
+            for (const [, key, value] of metaLines) {
+                result.metadata[key.trim()] = value.trim();
+            }
+
+            // 4. Duration / start / bitrate
+            const durMatch = stderr.match(
+                /Duration:\s*(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)/
+            );
+            if (durMatch) {
+                const [_, h, m, s] = durMatch;
+                result.duration =
+                    parseInt(h) * 3600 + parseInt(m) * 60 + parseFloat(s);
+            }
+            const startMatch = stderr.match(/start:\s*([\d.]+)/);
+            if (startMatch) result.startTime = parseFloat(startMatch[1]);
+
+            const brMatch = stderr.match(/bitrate:\s*(\d+)\s*kb\/s/);
+            if (brMatch) result.bitRate = parseInt(brMatch[1], 10) * 1000; // bps
+
+            // 5. 视频流
+            const videoRegex =
+                /Stream #0:\d+(?:\(\w+\))?: Video: ([^,]+), ([^,]+), ([^,\s]+)[\s\S]*?(\d+(?:\.\d+)?) fps/g;
+            let vMatch;
+            while ((vMatch = videoRegex.exec(stderr)) !== null) {
+                const [, codec, pixelFmt, resolution, fps] = vMatch;
+                const [width, height] = resolution.split("x").map(Number);
+                result.video.push({
+                    codec,
+                    pixelFmt,
+                    width,
+                    height,
+                    fps: parseFloat(fps),
+                });
+            }
+
+            // 6. 音频流
+            const audioRegex =
+                /Stream #0:\d+(?:\(\w+\))?: Audio: ([^,]+), (\d+) Hz, ([^,]+), ([^,]+), (\d+) kb\/s/g;
+            let aMatch;
+            while ((aMatch = audioRegex.exec(stderr)) !== null) {
+                const [, codec, sampleRate, channels, fmt, kbps] = aMatch;
+                result.audio.push({
+                    codec,
+                    sampleRate: parseInt(sampleRate, 10),
+                    channels: channels.trim(),
+                    bitDepth: fmt.trim(),
+                    bitRate: parseInt(kbps, 10) * 1000,
+                });
+            }
+
+            resolve(result);
+        });
+    });
+}
+
+//音频格式转换
+/**
+ *
+ * @param {*} inputFilePath 输入音频路径
+ * @param {*} exportExt 导出格式
+ * @returns 音频流
+ */
+function convertAudio(inputFilePath, sampleRate, exportExt) {
+    return new Promise((resolve, reject) => {
+        const { fileExtensionName, formatCommond } = genAudioFormatCommond(
+            inputFilePath,
+            sampleRate,
+            exportExt
+        );
+
+        console.log("fileExtensionName", fileExtensionName);
+        console.log("formatCommond", formatCommond);
+
+        const randowId = crypto.randomBytes(16).toString("hex");
+        const outputFileName = `${randowId}${fileExtensionName}`;
+        const outputFilePath = Path.join(audioOutputDataPath, outputFileName);
+
+        const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" ${formatCommond} "${outputFilePath}"`;
+
+        console.log("ffmpegCommond", ffmpegCommond);
+        exec(ffmpegCommond, (error, stdout, stderr) => {
+            if (error) {
+                reject({
+                    flag: "error",
+                    messgae: error,
+                });
+                return;
+            }
+
+            utools.shellOpenPath(Path.dirname(outputFilePath));
+
+            resolve({
+                flag: "success",
+                messgae: "",
+            });
+        });
+    });
+}
+
 //初始化插件
 utools.onPluginEnter(() => {
     initUserData();
@@ -777,4 +923,7 @@ window.services = {
     mixAudio,
     getLocalFile,
     userCtrlDownloadFile,
+    getFileStat,
+    getMediaBaseInfo,
+    convertAudio,
 };
