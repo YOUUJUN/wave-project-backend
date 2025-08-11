@@ -774,6 +774,7 @@ function getMediaBaseInfo(filePath) {
         const ffmpegCommond = `"${ffmpegFilePath}" -i "${filePath}" -f "null" -`;
         const result = {
             path: filePath,
+            rawContainer: null,
             format: null,
             duration: null,
             bitRate: null,
@@ -791,14 +792,30 @@ function getMediaBaseInfo(filePath) {
                 return;
             }
 
+            console.log("stderr", stderr);
+
             // 1. 文件大小（字节）
             try {
                 result.size = fs.statSync(filePath).size;
             } catch (_) {}
 
-            // 2. Input #0 行 -> 容器格式
-            const inputMatch = stderr.match(/Input #0,\s*([^,]+)/);
-            if (inputMatch) result.format = inputMatch[1].trim();
+            // 2. 原始容器标识
+            const containerMatch = stderr.match(/Input #0,\s*([^,\s]+)/);
+            result.rawContainer = containerMatch ? containerMatch[1] : null;
+
+            // 3. 友好名称映射
+            const ext = Path.extname(filePath).toLowerCase(); // .m4r / .m4a / .mp4 ...
+            const containerMap = {
+                mov: ext === ".m4r" ? "m4r" : "m4a", // 根据后缀决定
+                mp4: "mp4",
+                matroska: "mkv",
+                wav: "wav",
+                flac: "flac",
+                ogg: "ogg",
+                aac: "aac",
+            };
+            result.format =
+                containerMap[result.rawContainer] || result.rawContainer;
 
             // 3. Metadata 块（标题、艺术家、专辑……）
             const metaLines = stderr.matchAll(/^\s*(\w+)\s*:\s*(.+)$/gm);
@@ -864,20 +881,21 @@ function getMediaBaseInfo(filePath) {
  * @param {*} exportExt 导出格式
  * @returns 音频流
  */
-function convertAudio(inputFilePath, sampleRate, exportExt) {
+function convertAudio(inputFilePath, exportExt, sampleRate, outputFileName) {
     return new Promise((resolve, reject) => {
         const { fileExtensionName, formatCommond } = genAudioFormatCommond(
             inputFilePath,
-            sampleRate,
-            exportExt
+            exportExt,
+            sampleRate
         );
 
         console.log("fileExtensionName", fileExtensionName);
         console.log("formatCommond", formatCommond);
 
-        const randowId = crypto.randomBytes(16).toString("hex");
-        const outputFileName = `${randowId}${fileExtensionName}`;
-        const outputFilePath = Path.join(audioOutputDataPath, outputFileName);
+        const outputFilePath = Path.join(
+            audioOutputDataPath,
+            `${outputFileName}${fileExtensionName}`
+        );
 
         const ffmpegCommond = `"${ffmpegFilePath}" -i "${inputFilePath}" ${formatCommond} "${outputFilePath}"`;
 
